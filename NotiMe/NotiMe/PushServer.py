@@ -3,7 +3,7 @@ Created on Jul 11, 2014
 
 @author: dtrihinas
 '''
-from time import sleep
+import time 
 import threading
 import uuid
 import json
@@ -17,6 +17,8 @@ import tornado.web
 sockets = []
 # client interface to extract metrics
 client = None
+# log handler to log events
+logger = None
 
 # PushServer error codes which follow HTTP protocol
 class ErrorCodes:
@@ -37,29 +39,33 @@ class ErrorCodes:
 # worker process to server each client
 class Worker(threading.Thread):
     DEFAULT_PERIOD = 10
-    def __init__(self, subID, flag, handler):
+    def __init__(self, conID, flag, handler):
         threading.Thread.__init__(self)
         self.__procFlag = flag
         self.__handler = handler
-        #sub metadata
-        self.__subID = subID
-        self.__subName = None
-        self.__subType = None
-        self.__subUnit = None
-        self.__subFilter = None
-        self.__subAction = None 
+        self.__conID = conID
+        self.__metriclist = []
         
     def run(self):
         while not self.__procFlag:
             try:
-                msg = client.getLatestMetricValue('3f47fcba39244e89a114c6a0161482d1:cpuTotal')
-                print 'Worker %s>> sending message: %s' % (self.__subID, msg)
-                self.__handler.write_message(msg)
-            except tornado.websocket.WebSocketClosedError:
+                for metric in self.__metriclist:
+                    curtime = time.time()
+                    if (curtime - metric['lastTimestamp'] > metric['period']):
+                        msg = self.__calc(metric)
+                        if not metric['isThresBased']:
+                            print 'NotiMe.Worker.%s>> sending message: %s' % (self.__conID, msg)
+                            self.__handler.write_message(msg)
+                        else:
+                            pass #check threshold(s)
+                        metric['lastTimestamp'] = curtime
+                        print curtime
+            except tornado.websocket.WebSocketClosedError as e:
+                logger.critical('NotiMe.Worker.%s>> %s' % (self.__conID, e))
                 return
-            sleep(Worker.DEFAULT_PERIOD)
+            time.sleep(Worker.DEFAULT_PERIOD)
             
-    def getSubID(self):
+    def getConID(self):
         return self.__subID
             
     def getProcFlag(self):
@@ -68,27 +74,68 @@ class Worker(threading.Thread):
     def setProcFlag(self, f):
         self.__procFlag = f
         
-    def addMetricToSub(self, req):
-        print 'Worker %s>> received ADD request: %s' % (self.__subID, req)
+    def addMetricToCon(self, req):
+        print 'NotiMe.Worker.%s>> received ADD request: %s' % (self.__conID, req)
+        logger.debug('NotiMe.Worker.%s>> received ADD request: %s' % (self.__conID, req))
         try:
             body  = json.loads(req)
-            if self.__subID != body['subID']:
-                print 'Worker %s>> my subID does not match with subID in the provided json' % self.__subID
+            if self.__conID != body['conID']:
+                print 'NotiMe.Worker.%s>> my conID does not match with conID in the provided json' % self.__conID
+                logger.critical('NotiMe.Worker.%s>> my conID does not match with conID in the provided json' % self.__conID)
                 raise ValueError # subIDs don't match
-            self.__subFilter = body['filter']
-            if 'subName' in body:
-                self.__subName = body['subName']
+            
+            metric = {}
+            metric['filter'] = body['filter']
+            if 'name' in body:
+                metric['name'] = body['name']
             else:
-                self.__subName = self.__subFilter            
-            self.__subAction = body['action'] 
-            print 'subID: %s, subName: %s, filter: %s, action: %s' % (self.__subID, self.__subName, self.__subFilter, self.__subAction)
-        except (ValueError, KeyError):  #not valid json, message protocol or subIDs don't match
-            print 'Worker %s>> provided json is not valid' % self.__subID
-            self.__handler.write_message('{"status":"%s","subID":"%s"}' % (ErrorCodes.str(ErrorCodes.BAD_REQUEST), self.__subID))
+                metric['name'] = metric['filter']            
+            metric['action'] = body['action'].lower() 
+            print 'conID: %s, name: %s, filter: %s, action: %s' % (self.__conID, metric['name'], metric['filter'], metric['action'])
+            
+            #quick check via a real call to client to see if info provided by user are actually valid
+            res = self.__calc(metric)
+            if (res is None) or res == '{}':
+                print 'NotiMe.Worker.%s>> provided info in json is not valid' % self.__conID
+                logger.critical('NotiMe.Worker.%s>> provided info in json is not valid' % self.__conID)
+                self.__handler.write_message('{"status":"%s","conID":"%s", "desc":"provided info in json is not valid"}' % (ErrorCodes.str(ErrorCodes.BAD_REQUEST), self.__conID))
+                return
+            
+            if 'period' in metric['action']:
+                act = metric['action'].replace(' ','').split(':')[1]
+                metric['period'] = long(act)
+            else: metric['period'] = Worker.DEFAULT_PERIOD
+            
+            if 'notify' in metric['action']:
+                metric['isThresBased'] = True
+            else: 
+                metric['isThresBased'] = False
+                
+            metric['lastTimestamp'] = 0
+            subID = uuid.uuid4().__str__().replace("-","")
+            metric['subID'] = subID   
+            self.__metriclist.append(metric)
+            
+            self.__handler.write_message('{"status":"%s","conID":"%s", "subID":"%s"}' % (ErrorCodes.str(ErrorCodes.OK), self.__conID, subID))
+            print 'NotiMe.Worker.%s>> new metric ADDED with subID: %s' % (self.__conID, subID)
+            logger.debug('NotiMe.Worker.%s>> new metric ADDED with subID: %s' % (self.__conID, subID))
+                
+        except (ValueError, KeyError, Exception):  #not valid json, message protocol or subIDs don't match
+            print 'NotiMe.Worker.%s>> provided json is not valid' % self.__conID
+            logger.critical('NotiMe.Worker.%s>> provided json is not valid' % self.__conID)
+            self.__handler.write_message('{"status":"%s","conID":"%s", "desc":"provided json is not valid"}' % (ErrorCodes.str(ErrorCodes.BAD_REQUEST), self.__conID))
+            return
+        if not self.isAlive():
+            self.start()
         
-    def removeMetricFromSub(self, req):
-        print 'Worker %s>> received REMOVE request: %s' % (self.__subID, req)
+    def removeMetricFromCon(self, req):
+        print 'NotiMe.Worker.%s>> received REMOVE request: %s' % (self.__conID, req)
 
+    # needs a lot of TODOing
+    def __calc(self, metric):
+        mID = metric['filter'] # 3f47fcba39244e89a114c6a0161482d1:cpuTotal
+        res = client.getLatestMetricValue(mID)
+        return res
   
 # the Tornado WebSocket handler   
 class WSHandler(tornado.websocket.WebSocketHandler): 
@@ -97,36 +144,36 @@ class WSHandler(tornado.websocket.WebSocketHandler):
     def open(self):
         if self not in sockets:
             sockets.append(self)
-            self.subID = uuid.uuid4().__str__().replace("-","")
-            print 'PushServer>> new connection accepted, assigning id: %s' % self.subID
-            print 'PushServer>> number of open connections is now: %d' % sockets.__len__()
-            self.worker = Worker(self.subID, False, self)
-            self.write_message('{"status":"%s","subID":"%s"}' % (ErrorCodes.str(ErrorCodes.OK), self.subID))
+            self.conID = uuid.uuid4().__str__().replace("-","")
+            print 'NotiMe.WSHandler>> new connection accepted, assigning id: %s' % self.conID
+            logger.debug('NotiMe.WSHandler>> new connection accepted, assigning id: %s' % self.conID)
+            print 'NotiMe.WSHandler>> number of open connections is now: %d' % sockets.__len__()
+            self.worker = Worker(self.conID, False, self)
+            self.write_message('{"status":"%s","conID":"%s"}' % (ErrorCodes.str(ErrorCodes.OK), self.conID))
         else:
-            print 'PushServer>> connection with id: %s , already exists' % self.subID
+            print 'NotiMe.WSHandler>> connection with id: %s , already exists' % self.conID
             #HTTP 409: Conflict, TODO: what if client is just RECONNECTING
-            self.write_message('{"status":"%s","subID":"%s"}' % (ErrorCodes.str(ErrorCodes.CONFLICT), self.subID)) 
+            self.write_message('{"status":"%s","conID":"%s"}' % (ErrorCodes.str(ErrorCodes.CONFLICT), self.conID)) 
     
     #header:<ACTION>
     #{json}              
     def on_message(self, msg):
         if self in sockets:
-            print 'connection: %s , message received: %s' % (self.subID, msg)
+            print 'connection: %s , message received: %s' % (self.conID, msg)
             tokenz = msg.split('|') 
             header = tokenz[0].replace(' ','').lower()
             body = tokenz[1].strip()
             if header == 'header:add':
-                self.worker.addMetricToSub(body)
+                self.worker.addMetricToCon(body)
             elif header == 'header:remove':
-                self.worker.removeMetricFromSub(body)
+                self.worker.removeMetricFromCon(body)
             else:
                 #HTTP 400: Bad Request
-                self.write_message('{"status":"%s","subID":"%s"}' % (ErrorCodes.str(ErrorCodes.BAD_REQUEST), self.subID)) 
+                self.write_message('{"status":"%s","conID":"%s"}' % (ErrorCodes.str(ErrorCodes.BAD_REQUEST), self.conID)) 
+                logger.critical('NotiMe.WSHandler>> non valid message received from client %s' % self.conID)
                 return
-            if not self.worker.isAlive():
-                self.worker.start()
         else:
-            print 'PushServer: connection has not yet subscribed'
+            print 'NotiMe.WSHandler>> connection has not yet subscribed'
         
     def on_close(self):
         if self in sockets:
@@ -137,29 +184,38 @@ class WSHandler(tornado.websocket.WebSocketHandler):
                     if self.worker.isAlive():
                         self.worker.join(3 * WSHandler.__TIMEOUT)
                 sockets.remove(self)
-                print 'PushServer>> connection with id %s, is now closed' % self.subID
-                print 'PushServer>> number of remaining open connections is now: %d' % sockets.__len__()
-            except RuntimeError:
+                print 'NotiMe.WSHandler>> connection with id %s, is now closed' % self.conID
+                logger.debug('NotiMe.WSHandler>> connection with id %s, is now closed' % self.conID)
+                print 'NotiMe.WSHandler>> number of remaining open connections is now: %d' % sockets.__len__()
+            except RuntimeError as e:
+                logger.error('NotiMe.WSHandler>> %s' % e)
+                print 'NotiMe.WSHandler>> %s' % e
                 sockets.remove(self)
         else:
-            print 'PushServer>> connection with id %s, is not open so nothing to close'
+            print 'NotiMe.WSHandler>> connection with id %s, is not open so nothing to close'
 
 class PushServer():
     
-    def __init__(self, clientInterface, port, uri='/'):
+    def __init__(self, clientInterface, loghandler, port='8888', uri='/'):
         self.uri = uri
         self.port = port
+        global logger
+        logger = loghandler
         global client
         client = clientInterface
         if not client.dbPingTest():
-            raise RuntimeError('Client interface not responding')
+            raise RuntimeError('NotiMe.PushServer>> client interface not responding...')
 
     def start(self):
         self.app = tornado.web.Application([(self.uri, WSHandler)])
         http_server = tornado.httpserver.HTTPServer(self.app)
         http_server.listen(self.port)
         print 'NotiMe.PushServer>> successfully binded at uri: %s, and port: %s' % (self.uri, self.port)
+        logger.debug('NotiMe.PushServer>> successfully binded at uri: %s, and port: %s' % (self.uri, self.port))
+        print 'Noti.Me>> up and running, awaiting for requests...'
+        logger.debug('Noti.Me>> up and running, awaiting for requests...')
         tornado.ioloop.IOLoop.instance().start()
         
     def terminate(self):
         tornado.ioloop.IOLoop.instance().stop()
+        logger.debug('NotiMe.PushServer>> successfully terminated...')

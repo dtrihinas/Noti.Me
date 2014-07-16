@@ -1,5 +1,5 @@
 $(document).ready(function(){    
-    websocket("localhost","8888","/notime");
+    websocket("localhost","8888","/NotiMe");
 });
 
 function websocket(host,port,uri){
