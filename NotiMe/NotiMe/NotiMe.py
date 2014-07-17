@@ -8,28 +8,31 @@ from Utils import Utils
 from PushServer import PushServer
 import os
 import sys
-import logging
 
 class NotiMe:
     CONFIG_FILE_RELATIVE_PATH = 'resources' + os.sep + 'config.ini'
     
     def __init__(self):
-        self.mylogger = self.__configLogging()
-        print 'Noti.Me>> reading config file...'
-        self.mylogger.debug('Noti.Me>> reading config file...')
+        # configure logging
+        self.mylogger = Utils.configLogging()
+        self.mylogger.info('Noti.Me>> logging, up and running...')
+        
+        # configure config params
+        self.mylogger.info('Noti.Me>> reading config file...')
         self.config = {}
         if len(sys.argv) > 1:
-            # read config file from other directory rather than default directory
+            # read config file from other path rather than default one
             self.config = self.__parseConfig(sys.argv[1])
         else: self.config = self.__parseConfig()
         
-        print 'Noti.Me>> initializing...'
-        self.mylogger.debug('Noti.Me>> initializing...')
+        # initializing Noti.Me by configuring client interface and database endpoints
+        self.mylogger.info('Noti.Me>> initializing...')
         endpoints = self.config['client_endpoints'].replace(' ','').split(',')
         # dynamically import client interface
         self.client = self.__importClient(endpoints) 
         self.client.dbConnect()
         
+        # initializing PushServer
         try:
             self.pushserver = PushServer(self.client, self.mylogger, self.config['pushserver_port'], self.config['pushserver_uri'])
         except RuntimeError as e:
@@ -38,11 +41,15 @@ class NotiMe:
             sys.exit(1)
         self.pushserver.start()
     
-    def __parseConfig(self):
+    def __parseConfig(self, cwd = None):
         config = {}
         p = SafeConfigParser()
-        newCWD = Utils.rreplace(os.getcwd(),os.sep,1)
-        p.read(newCWD + os.sep + NotiMe.CONFIG_FILE_RELATIVE_PATH) 
+        # default config path is ../os.getcwd()/resources/config.ini
+        if cwd is None:
+            newCWD = Utils.rreplace(os.getcwd(), os.sep, 1)
+            p.read(newCWD + os.sep + NotiMe.CONFIG_FILE_RELATIVE_PATH)
+        else: 
+            p.read(cwd)
         try:
             config['client_module'] = p.get('client_interface', 'client.module')
             config['client_class'] = p.get('client_interface', 'client.class')
@@ -54,14 +61,10 @@ class NotiMe:
             config['pushserver_port'] = p.get('pushserver', 'pushserver.port')
             #print config['client_module'], config['client_class'], config['client_endpoints'], config['client_database'], config['client_username'], config['client_password'], config['pushserver_uri'], config['pushserver_port']
         except NoSectionError:
-            print 'Noti.Me>> config file could not be found or original config file sections have been altered'
-            print 'Noti.Me>> exiting...'
             self.mylogger.error('Noti.Me>> config file could not be found or original config file sections have been altered')
             self.mylogger.error('Noti.Me>> exiting...')
             sys.exit(1)
         except NoOptionError:
-            print 'Noti.Me>> a config file property is missing or properties do not follow Noti.Me format'
-            print 'Noti.Me>> exiting...'
             self.mylogger.error('Noti.Me>> a config file property is missing or properties do not follow Noti.Me format')
             self.mylogger.error('Noti.Me>> exiting...')
             sys.exit(1)
@@ -74,33 +77,13 @@ class NotiMe:
             client = klazz(endpoints, self.config['client_database'], self.config['client_username'], self.config['client_password'], self.mylogger)
         except Exception as e:
             self.mylogger.error('%s' % e)
-            print '%s' % e
             sys.exit(1)
         return client
-    
-    def __configLogging(self):
-        """method that configures logging for Noti.Me"""  
-        logfolder = "logs" + os.sep
-        if (not os.path.isdir(logfolder)):
-            os.makedirs(logfolder)
-        LOG_FILENAME = logfolder + os.sep + 'NotiMe.log'
-        # set up a specific logger with our desired output level
-        mylogger = logging.getLogger('NotiMeLogger')
-        mylogger.setLevel(logging.DEBUG)
-        # add the log message handler to the logger
-        handler = logging.handlers.RotatingFileHandler(LOG_FILENAME, 
-                                                       maxBytes=2*1024*1024, 
-                                                       backupCount=3)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        mylogger.addHandler(handler)
-        mylogger.debug('Noti.Me>> logging, up and running...')
-        return mylogger
     
     def terminate(self):
         self.pushserver.terminate()
         self.client.dbClose()
-        print 'Noti.Me>> exiting gracefully...'
+        self.mylogger.info('Noti.Me>> exiting gracefully...')
         sys.exit(0)
                 
 if __name__ == '__main__':

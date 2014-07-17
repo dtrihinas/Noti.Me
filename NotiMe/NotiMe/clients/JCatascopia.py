@@ -24,14 +24,13 @@ class JCatascopiaCassandra(IClient):
         self.__cluster = Cluster(self.__endpoints, default_retry_policy=RetryPolicy())
         meta = self.__cluster.metadata
         self.__session = self.__cluster.connect(self.__keyspace)
-        print 'NotiMe.JCatascopiaClient>> successfully connected to cluster: %s, and created session to keyspace: %s' % (meta.cluster_name, self.__keyspace)
-        self.logger.debug('NotiMe.JCatascopiaClient>> successfully connected to cluster: %s, and created session to keyspace: %s' % (meta.cluster_name, self.__keyspace))
+        self.logger.info('NotiMe.JCatascopiaClient>> successfully connected to cluster: %s, and created session to keyspace: %s' % (meta.cluster_name, self.__keyspace))
         self.__session.row_factory = dict_factory
         self.__getMetricValuesStmt = self.__session.prepare(JCatascopiaCassandra.__GET_METRIC_VALUE)
 
     def dbClose(self):
         self.__cluster.shutdown()
-        self.logger.debug('NotiMe.JCatascopiaClient>> database connection closed')
+        self.logger.info('NotiMe.JCatascopiaClient>> database connection closed')
         
     def getLatestMetricValue(self, metricID):        
         event_date = "2014-07-10"
@@ -40,13 +39,14 @@ class JCatascopiaCassandra(IClient):
             bs = self.__getMetricValuesStmt.bind((metricID,event_date))
             rows = self.__session.execute(bs)
             r = rows[0]
-            metricMap = {'metricID':r['metricid'], 'name':r['name'], 'units':r['units'], 'type':r['type'], 'group':r['mgroup'], 'value':r['value'], 'timestamp':r['event_timestamp']}
+            #metricMap = {'metricID':r['metricid'], 'name':r['name'], 'units':r['units'], 'type':r['type'], 'group':r['mgroup'], 'value':r['value'], 'timestamp':r['event_timestamp']}
             #print '%s' % json.dumps(metricMap)
-            return json.dumps(metricMap)
+            #return json.dumps(metricMap)
+            return r['value']
         except Exception as e:
-            print 'NotiMe.JCatascopiaClient>> %s' % e
-            self.logger.debug('NotiMe.JCatascopiaClient>> %s' % e)
-            return json.dumps({})
+            self.logger.info('NotiMe.JCatascopiaClient>> %s' % e)
+            return None
+            #return json.dumps({})
         
     def dbPingTest(self):
         try:
@@ -56,8 +56,7 @@ class JCatascopiaCassandra(IClient):
             else:
                 return False
         except Exception as e:
-            print 'NotiMe.JCatascopiaClient>> %s' % e
-            self.logger.debug('NotiMe.JCatascopiaClient>> %s' % e)
+            self.logger.error('NotiMe.JCatascopiaClient>> %s' % e)
             return False
 
 
