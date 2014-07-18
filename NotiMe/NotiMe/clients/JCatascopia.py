@@ -33,8 +33,8 @@ class JCatascopiaCassandra(IClient):
         self.logger.info('NotiMe.JCatascopiaClient>> database connection closed')
         
     def getLatestMetricValue(self, metricID):        
-        event_date = "2014-07-10"
-        #event_date = '%s' % date.today()
+        #event_date = "2014-07-10"
+        event_date = '%s' % date.today()
         try:
             bs = self.__getMetricValuesStmt.bind((metricID,event_date))
             rows = self.__session.execute(bs)
