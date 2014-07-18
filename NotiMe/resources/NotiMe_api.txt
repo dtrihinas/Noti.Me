@@ -1,0 +1,97 @@
+Noti.Me Web Socket Communication Protocol and API
+=================================================
+
+A. Installation
+---------------
+Note: must have sudo privilages
+[Dependencies]
+1. Python:
+	apt-get install build-essential python-dev
+	apt-get install python-pip
+2. Tornado web server:
+	pip install tornado
+3. Datastax Cassandra Driver (if JCatascopia Client Interface will be used):
+	pip install cassandra-driver
+[Noti.Me]
+1. Extract Noti.Me from tarball:
+	tar xvfz Noti.Me-<VERSION>.tar.gz
+2. Navigate to directory:
+	cd <PATH_TO_EXTRACTED_DIR>/NotiME/NotiMe/
+3. Configure Noti.Me via config file:
+	vim NotiMe/resources/config.ini
+3. Start Noti.Me:
+	python NotiMe.py
+
+B. Communication Protocol
+-------------------------
+1. Create a websocket with the following parameters:
+	- IP address/hostname of Noti.Me Server (e.g. localhost)
+	- Port that Noti.Me Server listens to (default port is 8888)
+	- URI of Noti.Me Server (e.g. /Noti.Me)
+   
+   Example: 
+		websocket URL: ws://localhost:8888/NotiMe
+   Response:
+		{"status":"OK","conID":"2847ec94a6784b85be5d3a61017b4225"}
+
+2. All messages are restricted to the following format:
+	<HEADER> | [<BODY>]
+
+3. All message status/error responses are restricted to the following format:
+	{"status":"<STATUS>","conID":"<CONID>"[,"desc":"<DESCRIPTION>",...]}
+
+
+C. Noti.ME JSON API
+-------------------
+1. Open a Connection:
+  Example: 
+		websocket URL: ws://localhost:8888/NotiMe
+  Response:
+		{"status":"OK","conID":"2847ec94a6784b85be5d3a61017b4225"}
+	- conID: established connection ID
+
+2. Add a metric (subscription) to a connection:
+	- conID: established connection ID
+	- name (optional): a name to give to this subscription
+	- filter: formula to calculate subscription (current version only accepts client interface metric ids)
+	- action: either periodic (e.g. PERIOD:<VALUE>) or threshold-based (e.g. NOTIFY:>80)
+	- units: units of newly formed metric
+  Example: 
+		header: ADD | {"conID":"2847ec94a6784b85be5d3a61017b4225","name":"cpu","filter":"3f47fcba39244e89a114c6a0161482d1:cpuTotal","action":"NOTIFY:<25,>80","units":"%"}
+  Response:
+		{"status":"OK","conID":"2847ec94a6784b85be5d3a61017b4225", "subID":"d2aff2e460ce467e8462b12bdca23dbf"}
+    - multiple metrics/subscriptions can be appended to a single connection and it is actually advised to do so. There is no need to keep one open connection per subscription
+	Example:
+		header: ADD | {"conID":"2847ec94a6784b85be5d3a61017b4225","name":"cpu","filter":"3f47fcba39244e89a114c6a0161482d1:memTotal","action":"PERIOD:20","units":"kb"} 
+	Response:
+		{"status":"OK","conID":"2847ec94a6784b85be5d3a61017b4225", "subID":"dd6c6904bd6a423ba5a25a225033b369"} 
+
+3. Remove a subscription from a connection:
+	- conID: established connection ID
+	- subID: subscription ID
+  Example: 
+		header: REMOVE | {"conID":"2847ec94a6784b85be5d3a61017b4225","subID":"d2aff2e460ce467e8462b12bdca23dbf"} 
+  Response:
+		{"status":"OK","conID":"2847ec94a6784b85be5d3a61017b4225"}
+
+4. Get connection ID
+  Example:
+		header: CONID |  
+  Response:
+		{"conID":"2847ec94a6784b85be5d3a61017b4225"} 
+
+5. List subscriptions for a connection:
+  Example:
+		header: LIST | {"conID":"2847ec94a6784b85be5d3a61017b4225"} 
+  Response:
+		{"subscriptions":[{"subID": "d2aff2e460ce467e8462b12bdca23dbf", "lastValue": "16.14043950492549", "name": "cpu", "isThresBased": true, "period": 10, "lastTimestamp": 1405675574.907556, "filter": "3f47fcba39244e89a114c6a0161482d1:cpuTotal", "units": "%", "action": "notify:<25,>80", "formula": "metric[\"lastValue\"]<25 or metric[\"lastValue\"]>80"},{"subID": "dd6c6904bd6a423ba5a25a225033b369", "lastValue": "4070172", "name": "cpu", "isThresBased": false, "period": 20, "lastTimestamp": 1405675574.915238, "filter": "3f47fcba39244e89a114c6a0161482d1:memTotal", "units": "kb", "action": "period:20"}]}
+
+D. Error Codes and Messages
+---------------------------
+	200 : "OK",
+	400 : "BAD_REQUEST",
+	409 : "CONFLICT",
+	500 : "INTERNAL_SERVER_ERROR"
+ Example(s):
+	{"status":"BAD_REQUEST","conID":"2847ec94a6784b85be5d3a61017b4225", "desc":"provided json is not valid"}
+	{"status":"BAD_REQUEST","conID":"2847ec94a6784b85be5d3a61017b4225", "desc":"provided info in json is not valid"}

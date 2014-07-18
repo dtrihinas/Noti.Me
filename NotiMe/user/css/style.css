@@ -1,0 +1,74 @@
+body{
+	background-color: #ddd;
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+}
+#container{
+	background-color: #fff;
+	width: 90%;
+	margin: 0 auto;
+	padding:5px;
+}
+
+#topPanel{
+	text-align: center;
+}
+
+#topPanel div{
+	border-bottom: 2px solid #ddd;
+	margin: 0 auto;
+	width: 98%;
+}
+
+#topPanel h1{
+	margin-bottom: -2px;
+}
+
+#mainPanel{
+	padding: 6px 10px 6px 10px;
+}
+
+#statusBar{
+	width:99.5%;
+	margin: 0 auto;
+	text-align: center;
+}
+
+#opDiv{
+	padding-top:10px;
+	width:80%;
+	margin: 0 auto;
+	text-align: center;
+}
+
+#buttonDiv{
+	padding-top:5px;
+	width:80%;
+	margin: 0 auto;
+	text-align: center;
+}
+
+#consoleDiv{
+	border:4px solid #ddd;	
+	height: 350px;
+	width:80%;
+	margin: 0 auto;
+	overflow: auto;
+}
+
+#consoleTitle{
+	padding:5px 10px 3px 10px;
+	width: 80%;
+	margin: 0 auto;
+}
+
+#console_row{
+	border-bottom:1px solid #ddd;
+	padding: 2px 4px 2px 4px;
+}
+
+#footer{
+	clear: both;
+	background-color: #ddd;
+	padding: 3px;
+	margin: 3px;
+}

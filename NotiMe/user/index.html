@@ -1,0 +1,110 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>Noti.Me</title>
+    
+    <script type="text/javascript" src="http://code.jquery.com/jquery.min.js"></script>
+    <script type="text/javascript" src="js/NotiMe.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/style.css" />
+</head>
+ 
+<body>
+	<div id="container">
+		<div id="topPanel">
+			<div>
+				<h1>Noti.Me</h1>
+			</div>
+		</div>
+		
+		<div id="mainPanel">
+			<div id="statusBar" style="background-color:#ddd;">
+				<table>
+					<tr>
+						<td style="border-right:2px solid #fff; padding-right:8px;">Noti.Me</td>
+						<td style="padding-left:8px;">Server</td><td><input type="text" id="serverIP" value="localhost"></td>
+						<td style="padding-left:8px;">Port</td><td><input type="text" id="serverPort" value="8888"></td>
+						<td style="padding-left:8px;">URI</td><td><input type="text" id="serverURI" value="/NotiMe"></td>
+					</tr>
+				</table>
+			</div>		
+		
+		    <div id="opDiv">
+		    	<table align="center">
+		    	<tr class="nd">
+		    		<td>header</td><td><input type="text" id="hmsg" /></td>
+		    	</tr>
+		    	<tr class="nd">
+		    		<td>body</td><td><input type="text" id="bmsg" /></td>
+		    	</tr>
+		    	
+		    	<tr class="am">
+		    		<td>Connection ID</td><td><input type="text" id="AMconID"></td>
+		    	</tr>
+		    	<tr class="am">	
+		    		<td>Name</td><td><input type="text" id="AMname"></td>
+		    	</tr>
+		    	<tr class="am">
+		    		<td>Filter</td><td><input type="text" id="AMfilter"></td>
+		    	</tr>
+		    	<tr class="am">	
+		    		<td>Action</td><td><input type="text" id="AMaction"></td>
+		    	</tr>
+		    	<tr class="am">
+		    		<td>Units</td><td><input type="text" id="AMunits"></td>
+		    	</tr>
+		    	<tr class="am">
+		    		<td colspan="2">
+		    			<input type="submit" id="addMetricSubmit" value="Submit" />
+			    		<input type="reset" id="addMetricClear" value="Clear" />
+			    		<input type="submit" id="addMetricHide" value="Hide" />
+		    		</td>
+		    	</tr>
+		  	
+		    	<tr class="rm">
+		    		<td>Connection ID</td><td><input type="text" id="RMconID"></td>
+		    	</tr>
+		    	<tr class="rm">	
+		    		<td>Subscription ID</td><td><input type="text" id="RMsubID"></td>
+		    	</tr>
+		    	<tr class="rm">
+		    		<td colspan="2">
+		    			<input type="submit" id="removeMetricSubmit" value="Submit" />
+			    		<input type="reset" id="removeMetricClear" value="Clear" />
+			    		<input type="submit" id="removeMetricHide" value="Hide" />
+		    		</td>
+		    	</tr>
+		    	
+		    	<tr class="sl">
+		    		<td>Connection ID</td><td><input type="text" id="SLconID"></td>
+		    	</tr>
+		    	<tr class="sl">
+		    		<td colspan="2">
+		    			<input type="submit" id="sublistSubmit" value="Submit" />
+			    		<input type="reset" id="sublistClear" value="Clear" />
+			    		<input type="submit" id="sublistHide" value="Hide" />
+		    		</td>
+		    	</tr>		
+		    	</table>
+		    </div>
+		    <div id="buttonDiv">
+			    <input type="submit" id="openWS" value="Open a connection" />
+			    <input type="submit" id="addMetric" value="Add metric" />			    
+			    <input type="submit" id="removeMetric" value="Remove metric" />
+			    <input type="submit" id="getConIDSubmit" value="Get connection ID" />
+			    <input type="submit" id="sublist" value="Get list of subs" />	
+		    </div>
+		    
+		    <div id="consolePanel">
+		    	<div id="consoleTitle"> &gt; Console</div>
+		    	<div id="consoleDiv">
+		    	</div>
+	    	</div>
+    	</div>
+    	
+    	<div id="footer">
+    		<p style="text-align:center">copyright &copy; <a href="http://linc.ucy.ac.cy" target="_blank">LInC</a> 2014</p>
+    	</div>
+	</div>   
+</body>
+</html>

@@ -203,6 +203,14 @@ class Worker(threading.Thread):
             logger.critical('NotiMe.Worker.%s>> provided json is not valid' % self.__conID)
             self.__handler.write_message('{"status":"%s","conID":"%s", "desc":"provided json is not valid"}' % (ErrorCodes.str(ErrorCodes.BAD_REQUEST), self.__conID))
 
+    def listSubs(self):
+        msg = '{"subscriptions":['
+        l = []
+        for m in self.__metriclist:
+            l.append(json.dumps(m));
+        msg += ','.join(l) + ']}';
+        self.__handler.write_message(msg); 
+
     def __calc(self, metric):
         # needs a lot of TODOing
         mID = metric['filter'] # 3f47fcba39244e89a114c6a0161482d1:cpuTotal
@@ -210,12 +218,19 @@ class Worker(threading.Thread):
         return res
   
     def __checkThresholds(self, metric):
-        act = metric['action'].split(':')[1].split(',')
-        l = []
-        v = metric['lastValue']
-        for a in act:
-            l.append(v+a)
-        return eval(' or '.join(l))
+        if 'formula' not in metric:
+            act = metric['action'].split(':')[1].split(',')
+            l = []
+            for a in act:
+                l.append('metric["lastValue"]'+a)
+            metric['formula'] = ' or '.join(l)
+        return eval(metric['formula'])
+#         act = metric['action'].split(':')[1].split(',')
+#         l = []
+#         v = metric['lastValue']
+#         for a in act:
+#             l.append(v+a)
+#         return eval(' or '.join(l))
           
   
 # the Tornado WebSocket handler   
@@ -247,6 +262,10 @@ class WSHandler(tornado.websocket.WebSocketHandler):
                 self.worker.addMetricToCon(body)
             elif header == 'header:remove':
                 self.worker.removeMetricFromCon(body)
+            elif header == 'header:conid':
+                self.write_message('{"conID":"'+self.worker.getConID()+'"}')
+            elif header == 'header:list':
+                self.worker.listSubs();    
             else:
                 #HTTP 400: Bad Request
                 self.write_message('{"status":"%s","conID":"%s"}' % (ErrorCodes.str(ErrorCodes.BAD_REQUEST), self.conID)) 
