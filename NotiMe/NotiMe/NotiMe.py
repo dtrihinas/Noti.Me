@@ -11,6 +11,7 @@ import sys
 
 class NotiMe:
     CONFIG_FILE_RELATIVE_PATH = 'resources' + os.sep + 'config.ini'
+    UI_RELATIVE_PATH = 'user' + os.sep
     
     def __init__(self):
         # configure logging
@@ -34,7 +35,7 @@ class NotiMe:
         
         # initializing PushServer
         try:
-            self.pushserver = PushServer(self.client, self.mylogger, self.config['pushserver_port'], self.config['pushserver_uri'])
+            self.pushserver = PushServer(self.client, self.mylogger, self.config['pushserver_port'], self.config['pushserver_uri'], self.config['pushserver_ui'])
         except RuntimeError as e:
             self.mylogger.error('%s' % e)
             print '%s' % e
@@ -45,6 +46,7 @@ class NotiMe:
         config = {}
         p = SafeConfigParser()
         # default config path is ../os.getcwd()/resources/config.ini
+        newCWD = ""
         if cwd is None:
             newCWD = Utils.rreplace(os.getcwd(), os.sep, 1)
             p.read(newCWD + os.sep + NotiMe.CONFIG_FILE_RELATIVE_PATH)
@@ -59,6 +61,7 @@ class NotiMe:
             config['client_password'] = p.get('client_interface', 'client.password')
             config['pushserver_uri'] = p.get('pushserver', 'pushserver.uri')
             config['pushserver_port'] = p.get('pushserver', 'pushserver.port')
+            config['pushserver_ui'] = newCWD + os.sep + NotiMe.UI_RELATIVE_PATH
             #print config['client_module'], config['client_class'], config['client_endpoints'], config['client_database'], config['client_username'], config['client_password'], config['pushserver_uri'], config['pushserver_port']
         except NoSectionError:
             self.mylogger.error('Noti.Me>> config file could not be found or original config file sections have been altered')

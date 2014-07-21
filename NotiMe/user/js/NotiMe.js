@@ -1,6 +1,7 @@
 $(document).ready(function(){  
 	var ws;
-    initWebsocket();
+	
+	$("#openWS").click(openWS);
     
     $("#opDiv").hide();
     $("#addMetric").click(addMetric);
@@ -92,32 +93,32 @@ function initWebsocket(){
 	var host = $("#serverIP").val();
 	var port = $("#serverPort").val();
 	var uri = $("#serverURI").val();
-	var url = "ws://" + host + ":" + port + uri;
+	return url = "ws://" + host + ":" + port + uri;
+}
 
-	$("#openWS").click(function(evt){
-		evt.preventDefault();
-		
-		ws = new WebSocket(url);
+function openWS(){
+    var url = initWebsocket();
 
-		ws.onopen = function(evt){ 
-			console.log("connection with " + url + " opened");
-			$("#consoleDiv").append("<div id=\"console_row\"> &gt; connection with " + url + " opened</div>");
-		};
-     
-		ws.onmessage = function(evt){
-			console.log("message received: " + evt.data);
-			$("#consoleDiv").trigger("consoleEvt",{Param1:evt.data});
-		};
+	ws = new WebSocket(url);
 
-		ws.onclose = function(evt){
-			console.log("connection with " + url + " closed");
-			$("#consoleDiv").append("<div id=\"console_row\"> &gt; connection with " + url + " closed</div>");
-		};	
-		
-		ws.onerror = function(evt){
-			console.log("error occured");
-		};
-	});
+	ws.onopen = function(evt){ 
+		console.log("connection with " + url + " opened");
+		$("#consoleDiv").append("<div id=\"console_row\"> &gt; connection with " + url + " opened</div>");
+	};
+ 
+	ws.onmessage = function(evt){
+		console.log("message received: " + evt.data);
+		$("#consoleDiv").trigger("consoleEvt",{Param1:evt.data});
+	};
+
+	ws.onclose = function(evt){
+		console.log("connection with " + url + " closed");
+		$("#consoleDiv").append("<div id=\"console_row\"> &gt; connection with " + url + " closed</div>");
+	};	
+	
+	ws.onerror = function(evt){
+		console.log("error occured");
+	};
 	
 	$("#consoleDiv").bind("consoleEvt", 
 			function(e,par){

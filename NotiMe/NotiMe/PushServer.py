@@ -224,13 +224,12 @@ class Worker(threading.Thread):
             for a in act:
                 l.append('metric["lastValue"]'+a)
             metric['formula'] = ' or '.join(l)
-        return eval(metric['formula'])
-#         act = metric['action'].split(':')[1].split(',')
-#         l = []
-#         v = metric['lastValue']
-#         for a in act:
-#             l.append(v+a)
-#         return eval(' or '.join(l))
+        act = metric['action'].split(':')[1].split(',')
+        l = []
+        for a in act:
+            l.append(metric["lastValue"] + a)
+        x = ' or '.join(l)
+        return eval(x)
           
   
 # the Tornado WebSocket handler   
@@ -293,9 +292,10 @@ class WSHandler(tornado.websocket.WebSocketHandler):
 
 class PushServer():
     
-    def __init__(self, clientInterface, loghandler, port='8888', uri='/'):
+    def __init__(self, clientInterface, loghandler, port='8888', uri='/', ui='user/index.html'):
         self.uri = uri
         self.port = port
+        self.uipath = ui
         global logger
         logger = loghandler
         global client
@@ -304,7 +304,9 @@ class PushServer():
             raise RuntimeError('NotiMe.PushServer>> client interface not responding...')
 
     def start(self):
-        self.app = tornado.web.Application([(self.uri, WSHandler)])
+        self.app = tornado.web.Application([(self.uri, WSHandler),
+                                            (r'/(.*)',tornado.web.StaticFileHandler,{'path': self.uipath})
+                                            ])
         http_server = tornado.httpserver.HTTPServer(self.app)
         http_server.listen(self.port)
         logger.info('NotiMe.PushServer>> successfully binded at uri: %s, and port: %s' % (self.uri, self.port))
